@@ -11,6 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalBody = document.getElementById('modal-body');
     const bookmarkletBtn = document.getElementById('bookmarklet-btn');
     const manualBtn = document.getElementById('manual-btn');
+    const searchInput = document.getElementById('search-input');
+    const sortSelect = document.getElementById('sort-select');
+    const showListBtn = document.getElementById('show-list-btn');
+    const listDrawer = document.getElementById('list-drawer');
+    const closeDrawer = document.querySelector('.close-drawer');
+    const clearListBtn = document.getElementById('clear-list-btn');
+    const listItemsContainer = document.getElementById('list-items');
+    const listCountBadge = document.getElementById('list-count');
 
     // Generate dynamic bookmarklet based on current origin
     if (bookmarkletBtn) {
@@ -51,13 +59,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let allRecipes = [];
+    let shoppingList = [];
     let activeTheme = 'Alles';
-
-    loadRecipes();
+    let searchQuery = '';
+    let sortMethod = 'newest';
 
     if (manualBtn) {
         manualBtn.addEventListener('click', () => renderManualForm());
     }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            renderRecipes();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', (e) => {
+            sortMethod = e.target.value;
+            renderRecipes();
+        });
+    }
+
+    if (showListBtn) showListBtn.addEventListener('click', () => openDrawer());
+    if (closeDrawer) closeDrawer.addEventListener('click', () => listDrawer.classList.add('hidden'));
+    if (listDrawer) {
+        listDrawer.addEventListener('click', (e) => {
+            if (e.target === listDrawer) listDrawer.classList.add('hidden');
+        });
+    }
+    if (clearListBtn) clearListBtn.addEventListener('click', () => clearShoppingList());
+
+    loadRecipes();
+    loadShoppingList();
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -137,13 +172,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderRecipes() {
         recipesGrid.innerHTML = '';
-        const filtered = activeTheme === 'Alles' ? allRecipes : allRecipes.filter(r => r.theme === activeTheme);
+        
+        let filtered = activeTheme === 'Alles' ? allRecipes : allRecipes.filter(r => r.theme === activeTheme);
+        
+        if (searchQuery) {
+            filtered = filtered.filter(r => 
+                r.title.toLowerCase().includes(searchQuery) || 
+                r.ingredients.toLowerCase().includes(searchQuery)
+            );
+        }
+
+        // Sorting
+        filtered.sort((a, b) => {
+            if (sortMethod === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+            if (sortMethod === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+            if (sortMethod === 'title') return a.title.localeCompare(b.title);
+            if (sortMethod === 'prep_time') {
+                const getMins = (s) => {
+                    if (!s) return 999;
+                    const match = s.match(/(\d+)/);
+                    return match ? parseInt(match[1]) : 999;
+                };
+                return getMins(a.prep_time) - getMins(b.prep_time);
+            }
+            return 0;
+        });
         
         filtered.forEach(recipe => {
             const card = document.createElement('div');
             card.className = 'recipe-card';
             card.innerHTML = `
                 <img src="${recipe.image_url || 'https://via.placeholder.com/300x200?text=Geen+Foto'}" alt="Recipe" class="recipe-img">
+                <button class="card-fav-btn ${recipe.is_favorite ? 'active' : ''}" data-id="${recipe.id}">
+                    ${recipe.is_favorite ? '❤️' : '🤍'}
+                </button>
                 <div class="recipe-content">
                     <div class="recipe-theme">
                         ${recipe.theme} 
@@ -157,19 +219,39 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             card.addEventListener('click', (e) => {
-                if(e.target.classList.contains('delete-btn')) return;
+                if(e.target.closest('.delete-btn') || e.target.closest('.card-fav-btn')) return;
                 openModal(recipe);
             });
 
             const delBtn = card.querySelector('.delete-btn');
-            delBtn.addEventListener('click', async () => {
+            delBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 if (confirm('Weet je zeker dat je dit recept wilt verwijderen?')) {
                     await fetch(`/api/recipes/${recipe.id}`, { method: 'DELETE' });
                     loadRecipes();
                 }
             });
 
+            const favBtn = card.querySelector('.card-fav-btn');
+            favBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const newState = recipe.is_favorite ? 0 : 1;
+                await updateRecipeField(recipe.id, { is_favorite: newState });
+                recipe.is_favorite = newState;
+                renderRecipes();
+            });
+
             recipesGrid.appendChild(card);
+        });
+    }
+
+    async function updateRecipeField(id, fields) {
+        const recipe = allRecipes.find(r => r.id === id);
+        const updated = { ...recipe, ...fields };
+        await fetch(`/api/recipes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated)
         });
     }
 
@@ -183,30 +265,83 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="modal-header">
                 <img src="${recipe.image_url || 'https://via.placeholder.com/300x200?text=Geen+Foto'}" alt="${recipe.title}">
                 <div>
-                    <div class="recipe-theme">
-                        ${recipe.theme}
-                        ${recipe.prep_time ? `<span class="recipe-time" style="margin-left: 10px;">⏱️ ${recipe.prep_time}</span>` : ''}
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="recipe-theme">
+                            ${recipe.theme}
+                            ${recipe.prep_time ? `<span class="recipe-time" style="margin-left: 10px;">⏱️ ${recipe.prep_time}</span>` : ''}
+                        </div>
+                        <button id="modal-fav-btn" class="fav-btn ${recipe.is_favorite ? 'active' : ''}">
+                            ${recipe.is_favorite ? '❤️' : '🤍'}
+                        </button>
                     </div>
                     <h2 class="modal-title">${recipe.title}</h2>
                     <a href="${recipe.source_url}" target="_blank" class="source-link">Bekijk originele bron →</a>
-                    <button id="edit-recipe-btn" class="edit-btn">Bewerken</button>
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button id="edit-recipe-btn" class="edit-btn" style="margin-top: 0;">Bewerken</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-body-content">
                 <div class="ingredients-list">
-                    <h3>Ingrediënten</h3>
-                    <ul>
+                    <h3>
+                        Ingrediënten
+                    </h3>
+                    <div class="servings-control">
+                        <button id="serv-minus">-</button>
+                        <span id="serv-text">2 personen</span>
+                        <button id="serv-plus">+</button>
+                    </div>
+                    <ul id="modal-ingredients">
                         ${ingredients.map(ing => `<li>${ing}</li>`).join('')}
                     </ul>
+                    <button id="add-all-to-list" class="add-to-list-btn">🛒 Alles op lijstje</button>
                 </div>
                 <div class="instructions-list">
                     <h3>Bereidingswijze</h3>
                     <ol>
                         ${instructions.map(inst => `<li>${inst}</li>`).join('')}
                     </ol>
+                    <div style="margin-top: 24px;">
+                        <h3>Notities</h3>
+                        <textarea id="modal-notes" class="notes-area" placeholder="Voeg een notitie toe...">${recipe.notes || ''}</textarea>
+                    </div>
                 </div>
             </div>
         `;
+        
+        const servingsText = modalBody.querySelector('#serv-text');
+        const ingredientsList = modalBody.querySelector('#modal-ingredients');
+        const notesArea = modalBody.querySelector('#modal-notes');
+        let currentServings = 2;
+
+        const updateServings = (newServings) => {
+            currentServings = Math.max(1, newServings);
+            servingsText.textContent = `${currentServings} personen`;
+            const multiplier = currentServings / 2;
+            ingredientsList.innerHTML = ingredients.map(ing => `<li>${scaleIngredient(ing, multiplier)}</li>`).join('');
+        };
+
+        modalBody.querySelector('#serv-minus').addEventListener('click', () => updateServings(currentServings - 1));
+        modalBody.querySelector('#serv-plus').addEventListener('click', () => updateServings(currentServings + 1));
+        modalBody.querySelector('#add-all-to-list').addEventListener('click', () => {
+            const currentIngs = Array.from(ingredientsList.querySelectorAll('li')).map(li => li.textContent);
+            currentIngs.forEach(ing => addToShoppingList(ing));
+            openDrawer();
+        });
+
+        notesArea.addEventListener('blur', () => {
+            updateRecipeField(recipe.id, { notes: notesArea.value });
+            recipe.notes = notesArea.value;
+        });
+
+        modalBody.querySelector('#modal-fav-btn').addEventListener('click', async (e) => {
+            const newState = recipe.is_favorite ? 0 : 1;
+            await updateRecipeField(recipe.id, { is_favorite: newState });
+            recipe.is_favorite = newState;
+            e.target.textContent = newState ? '❤️' : '🤍';
+            e.target.classList.toggle('active');
+            renderRecipes();
+        });
         
         const editBtn = modalBody.querySelector('#edit-recipe-btn');
         if (editBtn) {
@@ -368,4 +503,92 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.add('hidden');
     });
+
+    // Shopping List Functions
+    async function loadShoppingList() {
+        const res = await fetch('/api/shopping-list');
+        shoppingList = await res.json();
+        renderShoppingList();
+    }
+
+    function renderShoppingList() {
+        listItemsContainer.innerHTML = '';
+        listCountBadge.textContent = shoppingList.length;
+
+        shoppingList.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `list-item ${item.is_checked ? 'checked' : ''}`;
+            div.innerHTML = `
+                <input type="checkbox" ${item.is_checked ? 'checked' : ''}>
+                <span class="list-item-text">${item.text}</span>
+                <button class="delete-btn" style="border:none; padding: 4px;">&times;</button>
+            `;
+
+            div.querySelector('input').addEventListener('change', async (e) => {
+                const is_checked = e.target.checked ? 1 : 0;
+                await fetch(`/api/shopping-list/${item.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_checked })
+                });
+                item.is_checked = is_checked;
+                div.classList.toggle('checked', is_checked);
+            });
+
+            div.querySelector('.delete-btn').addEventListener('click', async () => {
+                await fetch(`/api/shopping-list/${item.id}`, { method: 'DELETE' });
+                shoppingList = shoppingList.filter(i => i.id !== item.id);
+                renderShoppingList();
+            });
+
+            listItemsContainer.appendChild(div);
+        });
+    }
+
+    async function addToShoppingList(text) {
+        const res = await fetch('/api/shopping-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const newItem = await res.json();
+        shoppingList.push(newItem);
+        renderShoppingList();
+    }
+
+    async function clearShoppingList() {
+        if (confirm('Boodschappenlijst helemaal leegmaken?')) {
+            await fetch('/api/shopping-list', { method: 'DELETE' });
+            shoppingList = [];
+            renderShoppingList();
+        }
+    }
+
+    function openDrawer() {
+        listDrawer.classList.remove('hidden');
+    }
+
+    // Helper: Scaling logic
+    function scaleIngredient(ing, multiplier) {
+        // Regex to find numbers (including decimals and fractions)
+        // Handles: 500, 1.5, 1,5, 1/2
+        const numRegex = /(\d+[\.,\/]?\d*)/g;
+        
+        return ing.replace(numRegex, (match) => {
+            if (match.includes('/')) {
+                const [a, b] = match.split('/');
+                const val = (parseInt(a) / parseInt(b)) * multiplier;
+                return formatNumber(val);
+            }
+            const val = parseFloat(match.replace(',', '.')) * multiplier;
+            return formatNumber(val);
+        });
+    }
+
+    function formatNumber(num) {
+        if (num % 1 === 0) return num.toString();
+        // Return 1 decimal if needed, but avoid 1.0
+        const s = num.toFixed(1);
+        return s.endsWith('.0') ? s.slice(0, -2) : s;
+    }
 });
