@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🍳 Recepten Dashboard</h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="add-recipe-section">
+            <div class="card add-card">
+                <h2>Nieuw Recept Toevoegen</h2>
+                <form id="add-recipe-form">
+                    <div class="form-group">
+                        <label for="url">Recept URL (meerdere gescheiden door komma)</label>
+                        <input type="text" id="url" placeholder="https://www.ah.nl/allerhande/recept/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="theme">Thema</label>
+                        <input type="text" id="theme" placeholder="bijv. Italiaans, Vegetarisch, Toetjes" required>
+                    </div>
+                    <button type="submit" id="submit-btn">
+                        <span class="btn-text">Ophalen & Opslaan</span>
+                        <div class="loader hidden"></div>
+                    </button>
+                </form>
+                <div id="status-msg"></div>
+            </div>
+        </section>
+
+        <section class="bookmarklet-section">
+            <div class="card">
+                <h3>💡 Tip: Gebruik de Recepten-Knop (Voor o.a. Allerhande)</h3>
+                <p>Sommige websites blokkeren onze app. We hebben de perfecte oplossing! Sleep de groene knop hieronder naar de <strong>bladwijzerbalk (favorietenbalk)</strong> van je browser. Ben je op een receptenpagina? Klik dan op die knop om het recept met één klik te bewaren!</p>
+                <br>
+                <a class="bookmarklet-btn" href="javascript:(function()%20%7B%0A%20%20%20%20let%20scripts%20=%20document.querySelectorAll('script%5Btype=%22application/ld+json%22%5D');%0A%20%20%20%20let%20found%20=%20null;%0A%20%20%20%20for(let%20s%20of%20scripts)%20%7B%0A%20%20%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20j%20=%20JSON.parse(s.innerHTML);%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20items%20=%20Array.isArray(j)%20?%20j%20:%20%5Bj%5D;%0A%20%20%20%20%20%20%20%20%20%20%20%20if(j%5B'@graph'%5D)%20items%20=%20j%5B'@graph'%5D;%0A%20%20%20%20%20%20%20%20%20%20%20%20for(let%20i%20of%20items)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if(i%5B'@type'%5D%20===%20'Recipe'%20%7C%7C%20(Array.isArray(i%5B'@type'%5D)%20&&%20i%5B'@type'%5D.includes('Recipe')))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20found%20=%20j;%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20break;%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%20catch(e)%20%7B%7D%0A%20%20%20%20%7D%0A%20%20%20%20if(!found)%20%7B%0A%20%20%20%20%20%20%20%20alert('Geen%20compatibel%20recept%20gevonden%20op%20deze%20pagina!');%0A%20%20%20%20%20%20%20%20return;%0A%20%20%20%20%7D%0A%20%20%20%20let%20theme%20=%20prompt('Welk%20thema%20wil%20je%20aan%20dit%20recept%20geven?',%20'Algemeen');%0A%20%20%20%20if(theme%20===%20null)%20return;%0A%20%20%20%20let%20ogImage%20=%20document.querySelector('meta%5Bproperty=%22og:image%22%5D')?.content%20%7C%7C%20document.querySelector('meta%5Bname=%22twitter:image%22%5D')?.content%20%7C%7C%20'';%0A%20%20%20%20fetch('http://localhost:3000/api/recipes/raw',%20%7B%0A%20%20%20%20%20%20%20%20method:%20'POST',%0A%20%20%20%20%20%20%20%20headers:%20%7B%20'Content-Type':%20'application/json'%20%7D,%0A%20%20%20%20%20%20%20%20body:%20JSON.stringify(%7B%20json:%20found,%20url:%20window.location.href,%20theme:%20theme,%20ogImage:%20ogImage%20%7D)%0A%20%20%20%20%7D).then(r%20=%3E%20r.json()).then(d%20=%3E%20%7B%0A%20%20%20%20%20%20%20%20if(d.error)%20alert('Fout:%20'%20+%20d.error);%0A%20%20%20%20%20%20%20%20else%20alert('Recept%20succesvol%20opgeslagen%20in%20je%20app!');%0A%20%20%20%20%7D).catch(e%20=%3E%20alert('Fout%20bij%20opslaan!%20Zorg%20dat%20de%20app%20(localhost:3000)%20open%20staat.'));%0A%7D)();">➕ Bewaar Recept</a>
+            </div>
+        </section>
+
+        <section class="recipes-section">
+            <div class="filters">
+                <h3>Filter op Thema</h3>
+                <div id="theme-filters" class="badge-container">
+                    <!-- Badges will be injected here -->
+                </div>
+            </div>
+
+            <div id="recipes-grid" class="recipes-grid">
+                <!-- Recipe cards will be injected here -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Recipe Details -->
+    <div id="recipe-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
