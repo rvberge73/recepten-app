@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.querySelector('.close-btn');
     const modalBody = document.getElementById('modal-body');
     const bookmarkletBtn = document.getElementById('bookmarklet-btn');
+    const manualBtn = document.getElementById('manual-btn');
 
     // Generate dynamic bookmarklet based on current origin
     if (bookmarkletBtn) {
@@ -53,6 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeTheme = 'Alles';
 
     loadRecipes();
+
+    if (manualBtn) {
+        manualBtn.addEventListener('click', () => renderManualForm());
+    }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -273,6 +278,83 @@ document.addEventListener('DOMContentLoaded', () => {
                     recipe.instructions = JSON.stringify(insts);
                     loadRecipes();
                     openModal(recipe);
+                } else {
+                    alert('Fout bij opslaan van recept.');
+                }
+            } catch(e) {
+                alert('Netwerkfout bij opslaan.');
+            }
+        });
+    }
+
+    function renderManualForm() {
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <div style="width: 100%;">
+                    <h2 class="modal-title">Nieuw Recept Toevoegen</h2>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Titel</label>
+                    <input type="text" id="manual-title" placeholder="Naam van het recept" class="edit-input">
+                    
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Thema</label>
+                            <input type="text" id="manual-theme" placeholder="bijv. Italiaans" class="edit-input">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Bereidingstijd</label>
+                            <input type="text" id="manual-prep-time" placeholder="bijv. 30 min" class="edit-input">
+                        </div>
+                    </div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Afbeelding URL (optioneel)</label>
+                    <input type="text" id="manual-image" placeholder="https://..." class="edit-input">
+                </div>
+            </div>
+            <div class="modal-body-content">
+                <div class="ingredients-list" style="flex: 1;">
+                    <h3>Ingrediënten (1 per regel)</h3>
+                    <textarea id="manual-ingredients" class="edit-textarea" placeholder="bijv. 500g Pasta"></textarea>
+                </div>
+                <div class="instructions-list" style="flex: 1;">
+                    <h3>Bereidingswijze (1 per regel)</h3>
+                    <textarea id="manual-instructions" class="edit-textarea" placeholder="bijv. Kook de pasta..."></textarea>
+                </div>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button id="cancel-manual-btn" class="delete-btn" style="background: var(--text-muted); margin-right: 10px;">Annuleren</button>
+                <button id="save-manual-btn" class="edit-btn">Recept Opslaan</button>
+            </div>
+        `;
+
+        modal.classList.remove('hidden');
+
+        document.getElementById('cancel-manual-btn').addEventListener('click', () => modal.classList.add('hidden'));
+        document.getElementById('save-manual-btn').addEventListener('click', async () => {
+            const title = document.getElementById('manual-title').value;
+            const theme = document.getElementById('manual-theme').value;
+            const prep_time = document.getElementById('manual-prep-time').value;
+            const image_url = document.getElementById('manual-image').value;
+            const ings = document.getElementById('manual-ingredients').value.split('\n').map(i => i.trim()).filter(i => i);
+            const insts = document.getElementById('manual-instructions').value.split('\n').map(i => i.trim()).filter(i => i);
+
+            if (!title) {
+                alert('Titel is verplicht!');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/recipes/manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title, theme, prep_time, image_url,
+                        ingredients: JSON.stringify(ings),
+                        instructions: JSON.stringify(insts)
+                    })
+                });
+
+                if (res.ok) {
+                    modal.classList.add('hidden');
+                    loadRecipes();
                 } else {
                     alert('Fout bij opslaan van recept.');
                 }

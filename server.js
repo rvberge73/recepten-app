@@ -55,6 +55,18 @@ app.post('/api/recipes/raw', (req, res) => {
     }
 });
 
+// Add a recipe manually
+app.post('/api/recipes/manual', (req, res) => {
+    const { title, theme, prep_time, ingredients, instructions, image_url } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    const sql = `INSERT INTO recipes (title, theme, source_url, image_url, ingredients, instructions, prep_time) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    db.run(sql, [title, theme || 'Algemeen', 'Handmatig toegevoegd', image_url || '', ingredients, instructions, prep_time], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: this.lastID });
+    });
+});
+
 // Update a recipe
 app.put('/api/recipes/:id', (req, res) => {
     const { title, theme, prep_time, ingredients, instructions } = req.body;

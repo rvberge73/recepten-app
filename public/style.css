@@ -148,6 +148,17 @@ button:disabled {
     transition: transform 0.2s;
 }
 .bookmarklet-btn:hover { transform: scale(1.05); }
+.manual-btn {
+    background-color: white;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    margin-top: 12px;
+    width: 100%;
+}
+.manual-btn:hover {
+    background-color: var(--primary);
+    color: white;
+}
 .bookmarklet-section { margin-top: 24px; }
 
 .filters {
