@@ -9,6 +9,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('recipe-modal');
     const closeBtn = document.querySelector('.close-btn');
     const modalBody = document.getElementById('modal-body');
+    const bookmarkletBtn = document.getElementById('bookmarklet-btn');
+
+    // Generate dynamic bookmarklet based on current origin
+    if (bookmarkletBtn) {
+        const origin = window.location.origin;
+        const code = `(function() {
+            let scripts = document.querySelectorAll('script[type="application/ld+json"]');
+            let found = null;
+            for(let s of scripts) {
+                try {
+                    let j = JSON.parse(s.innerHTML);
+                    let items = Array.isArray(j) ? j : [j];
+                    if(j['@graph']) items = j['@graph'];
+                    for(let i of items) {
+                        if(i['@type'] === 'Recipe' || (Array.isArray(i['@type']) && i['@type'].includes('Recipe'))) {
+                            found = j;
+                            break;
+                        }
+                    }
+                } catch(e) {}
+            }
+            if(!found) {
+                alert('Geen compatibel recept gevonden op deze pagina!');
+                return;
+            }
+            let theme = prompt('Welk thema wil je aan dit recept geven?', 'Algemeen');
+            if(theme === null) return;
+            let ogImage = document.querySelector('meta[property="og:image"]')?.content || document.querySelector('meta[name="twitter:image"]')?.content || '';
+            fetch('${origin}/api/recipes/raw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ json: found, url: window.location.href, theme: theme, ogImage: ogImage })
+            }).then(r => r.json()).then(d => {
+                if(d.error) alert('Fout: ' + d.error);
+                else alert('Recept succesvol opgeslagen in je app!');
+            }).catch(e => alert('Fout bij opslaan! Zorg dat de app op ${origin} bereikbaar is.'));
+        })()`;
+        bookmarkletBtn.href = `javascript:${encodeURIComponent(code)}`;
+    }
 
     let allRecipes = [];
     let activeTheme = 'Alles';
