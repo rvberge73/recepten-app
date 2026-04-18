@@ -16,12 +16,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
             image_url TEXT,
             ingredients TEXT,
             instructions TEXT,
+            is_favorite INTEGER DEFAULT 0,
+            notes TEXT,
+            prep_time TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`, () => {
-            db.run(`ALTER TABLE recipes ADD COLUMN prep_time TEXT`, (err) => {
-                if (!err) console.log('Migration: Added prep_time column to recipes table.');
-            });
+            // Check and add columns if they don't exist (for existing databases)
+            db.run(`ALTER TABLE recipes ADD COLUMN is_favorite INTEGER DEFAULT 0`, () => {});
+            db.run(`ALTER TABLE recipes ADD COLUMN notes TEXT`, () => {});
+            db.run(`ALTER TABLE recipes ADD COLUMN prep_time TEXT`, () => {});
         });
+
+        db.run(`CREATE TABLE IF NOT EXISTS shopping_list (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            is_checked INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
     }
 });
 

@@ -67,13 +67,52 @@ app.post('/api/recipes/manual', (req, res) => {
     });
 });
 
-// Update a recipe
+// Update a recipe (including favorites and notes)
 app.put('/api/recipes/:id', (req, res) => {
-    const { title, theme, prep_time, ingredients, instructions } = req.body;
-    const sql = `UPDATE recipes SET title = ?, theme = ?, prep_time = ?, ingredients = ?, instructions = ? WHERE id = ?`;
-    db.run(sql, [title, theme, prep_time, ingredients, instructions, req.params.id], function(err) {
+    const { title, theme, prep_time, ingredients, instructions, is_favorite, notes } = req.body;
+    const sql = `UPDATE recipes SET title = ?, theme = ?, prep_time = ?, ingredients = ?, instructions = ?, is_favorite = ?, notes = ? WHERE id = ?`;
+    db.run(sql, [title, theme, prep_time, ingredients, instructions, is_favorite, notes, req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ updated: this.changes });
+    });
+});
+
+// Delete a recipe
+app.get('/api/shopping-list', (req, res) => {
+    db.all('SELECT * FROM shopping_list ORDER BY created_at ASC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/shopping-list', (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Text is required' });
+    db.run('INSERT INTO shopping_list (text) VALUES (?)', [text], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: this.lastID, text, is_checked: 0 });
+    });
+});
+
+app.patch('/api/shopping-list/:id', (req, res) => {
+    const { is_checked } = req.body;
+    db.run('UPDATE shopping_list SET is_checked = ? WHERE id = ?', [is_checked, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ updated: this.changes });
+    });
+});
+
+app.delete('/api/shopping-list/:id', (req, res) => {
+    db.run('DELETE FROM shopping_list WHERE id = ?', req.params.id, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ deleted: this.changes });
+    });
+});
+
+app.delete('/api/shopping-list', (req, res) => {
+    db.run('DELETE FROM shopping_list', [], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ deleted: this.changes });
     });
 });
 
