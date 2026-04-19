@@ -292,9 +292,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button id="serv-plus">+</button>
                     </div>
                     <ul id="modal-ingredients">
-                        ${ingredients.map(ing => `<li>${ing}</li>`).join('')}
+                        ${ingredients.map((ing, idx) => `
+                            <li class="ingredient-item">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" class="ing-checkbox" data-ing="${ing.replace(/"/g, '&quot;')}">
+                                    <span class="checkmark"></span>
+                                    <span class="ing-text">${ing}</span>
+                                </label>
+                            </li>
+                        `).join('')}
                     </ul>
-                    <button id="add-all-to-list" class="add-to-list-btn">🛒 Alles op lijstje</button>
+                    <div class="ingredient-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
+                        <button id="add-selected-to-list" class="add-to-list-btn secondary" disabled>🛒 Selectie toevoegen</button>
+                        <button id="add-all-to-list" class="add-to-list-btn">🛒 Alles op lijstje</button>
+                    </div>
                 </div>
                 <div class="instructions-list">
                     <h3>Bereidingswijze</h3>
@@ -312,19 +323,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const servingsText = modalBody.querySelector('#serv-text');
         const ingredientsList = modalBody.querySelector('#modal-ingredients');
         const notesArea = modalBody.querySelector('#modal-notes');
+        const addSelectedBtn = modalBody.querySelector('#add-selected-to-list');
         let currentServings = 2;
+
+        const updateSelectedBtnState = () => {
+            const checkedCount = ingredientsList.querySelectorAll('.ing-checkbox:checked').length;
+            addSelectedBtn.disabled = checkedCount === 0;
+            if (checkedCount > 0) {
+                addSelectedBtn.textContent = `🛒 ${checkedCount} item${checkedCount > 1 ? 's' : ''} toevoegen`;
+            } else {
+                addSelectedBtn.textContent = `🛒 Selectie toevoegen`;
+            }
+        };
+
+        ingredientsList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('ing-checkbox')) {
+                updateSelectedBtnState();
+            }
+        });
 
         const updateServings = (newServings) => {
             currentServings = Math.max(1, newServings);
             servingsText.textContent = `${currentServings} personen`;
             const multiplier = currentServings / 2;
-            ingredientsList.innerHTML = ingredients.map(ing => `<li>${scaleIngredient(ing, multiplier)}</li>`).join('');
+            ingredientsList.innerHTML = ingredients.map((ing, idx) => `
+                <li class="ingredient-item">
+                    <label class="checkbox-container">
+                        <input type="checkbox" class="ing-checkbox" data-ing="${scaleIngredient(ing, multiplier).replace(/"/g, '&quot;')}">
+                        <span class="checkmark"></span>
+                        <span class="ing-text">${scaleIngredient(ing, multiplier)}</span>
+                    </label>
+                </li>
+            `).join('');
+            updateSelectedBtnState();
         };
 
         modalBody.querySelector('#serv-minus').addEventListener('click', () => updateServings(currentServings - 1));
         modalBody.querySelector('#serv-plus').addEventListener('click', () => updateServings(currentServings + 1));
+        
+        addSelectedBtn.addEventListener('click', () => {
+            const selectedIngs = Array.from(ingredientsList.querySelectorAll('.ing-checkbox:checked')).map(cb => cb.dataset.ing);
+            selectedIngs.forEach(ing => addToShoppingList(ing));
+            openDrawer();
+        });
+
         modalBody.querySelector('#add-all-to-list').addEventListener('click', () => {
-            const currentIngs = Array.from(ingredientsList.querySelectorAll('li')).map(li => li.textContent);
+            const currentIngs = Array.from(ingredientsList.querySelectorAll('.ing-text')).map(span => span.textContent);
             currentIngs.forEach(ing => addToShoppingList(ing));
             openDrawer();
         });
