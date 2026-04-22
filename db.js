@@ -23,19 +23,21 @@ if (isProduction) {
 
     db = {
         all: (sql, params, callback) => {
-            pool.query(convertPlaceholders(sql), params, (err, res) => {
+            const p = Array.isArray(params) ? params : [params];
+            pool.query(convertPlaceholders(sql), p, (err, res) => {
                 if (err) callback(err);
                 else callback(null, res.rows);
             });
         },
         run: function(sql, params, callback) {
+            const p = Array.isArray(params) ? params : [params];
             let finalSql = convertPlaceholders(sql);
             const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
             if (isInsert && !finalSql.toUpperCase().includes('RETURNING')) {
                 finalSql += ' RETURNING id';
             }
 
-            pool.query(finalSql, params, (err, res) => {
+            pool.query(finalSql, p, (err, res) => {
                 if (err) {
                     if (callback) callback(err);
                 } else {
@@ -45,7 +47,8 @@ if (isProduction) {
             });
         },
         get: (sql, params, callback) => {
-            pool.query(convertPlaceholders(sql), params, (err, res) => {
+            const p = Array.isArray(params) ? params : [params];
+            pool.query(convertPlaceholders(sql), p, (err, res) => {
                 if (err) callback(err);
                 else callback(null, res.rows[0]);
             });
